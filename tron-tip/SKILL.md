@@ -1,11 +1,17 @@
 ---
-name: generate-tip
+name: tron-tip
 description: Generate TRON Improvement Proposals (TIPs) in the official format. Use when user wants to create, draft, or write a TIP for the TRON protocol, including core protocol specifications, client APIs, or contract standards.
 ---
 
-# Generate TIP
+# TRON TIP Skill
 
 Generate TRON Improvement Proposals (TIPs) that follow the official format from [tronprotocol/tips](https://github.com/tronprotocol/tips).
+
+## Usage
+
+```bash
+/tron-tip
+```
 
 ## TIP Overview
 

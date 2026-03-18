@@ -1,17 +1,17 @@
 ---
-name: java-tron-github
+name: tron-contrib
 description: Generate PR titles, Issue templates, and commit messages for tronprotocol/java-tron
 type: skill
 ---
 
-# TRON GitHub Skill
+# TRON Contrib Skill
 
 Helps you generate properly formatted commit messages, PR titles, and Issue templates for the tronprotocol/java-tron repository.
 
 ## Usage
 
 ```bash
-/tron-github
+/tron-contrib
 ```
 
 ## Contributing Overview

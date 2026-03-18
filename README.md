@@ -6,20 +6,20 @@ A collection of Skills for TRON blockchain development.
 
 | Skill | Description |
 |-------|-------------|
-| [java-tron-github](#java-tron-github) | Generate PR titles, Issue templates, and commit messages for tronprotocol/java-tron |
-| [generate-tip](#generate-tip) | Generate TRON Improvement Proposals (TIPs) in the official format |
+| [tron-contrib](#tron-contrib) | Generate PR titles, Issue templates, and commit messages for tronprotocol/java-tron |
+| [tron-tip](#tron-tip) | Generate TRON Improvement Proposals (TIPs) in the official format |
 
 ---
 
-### java-tron-github
+### tron-contrib
 
-**Path**: `java-tron-github/`
+**Path**: `tron-contrib/`
 
 **Description**: Generates properly formatted PR titles, Issue templates, and commit messages for the `tronprotocol/java-tron` repository.
 
 **Usage**:
 ```bash
-/java-tron-github
+/tron-contrib
 ```
 
 **Features**:
@@ -42,15 +42,15 @@ refactor(config): extract CLIParameter and restructure Args init flow
 
 ---
 
-### generate-tip
+### tron-tip
 
-**Path**: `generate-tip/`
+**Path**: `tron-tip/`
 
 **Description**: Generate TRON Improvement Proposals (TIPs) in the official format from [tronprotocol/tips](https://github.com/tronprotocol/tips).
 
 **Usage**:
 ```bash
-/generate-tip
+/tron-tip
 ```
 
 **Features**:
