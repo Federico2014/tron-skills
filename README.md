@@ -1,6 +1,6 @@
 # TRON Skills
 
-A collection of Claude Code Skills for TRON blockchain development.
+A collection of Skills for TRON blockchain development.
 
 ## Available Skills
 
