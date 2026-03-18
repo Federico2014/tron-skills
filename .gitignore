@@ -1,0 +1,12 @@
+# IDE
+.idea/
+*.iml
+
+# Claude settings (optional - remove if you want to share skills config)
+# .claude/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
