@@ -4,6 +4,13 @@ A collection of Skills for TRON blockchain development.
 
 ## Available Skills
 
+| Skill | Description |
+|-------|-------------|
+| [java-tron-github](#java-tron-github) | Generate PR titles, Issue templates, and commit messages for tronprotocol/java-tron |
+| [generate-tip](#generate-tip) | Generate TRON Improvement Proposals (TIPs) in the official format |
+
+---
+
 ### java-tron-github
 
 **Path**: `java-tron-github/`
