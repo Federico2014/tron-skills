@@ -14,12 +14,23 @@ Helps you generate properly formatted commit messages, PR titles, and Issue temp
 /tron-github
 ```
 
+## Contributing Overview
+
+java-tron is an open-source project that welcomes contributions from anyone. There are two main ways to contribute:
+
+1. **Small fixes**: Send a pull request (PR) with a detailed description
+2. **Complex changes**: Submit an issue to the [TIP repository](https://github.com/tronprotocol/tips) detailing your motive and implementation plan
+
 ## Commit Message Format
 
 ### Format
 
 ```
 type(scope): subject
+<BLANK LINE>
+<body>
+<BLANK LINE>
+<footer>
 ```
 
 - **subject**: Under 50 characters, lowercase verb, no trailing period
@@ -65,34 +76,84 @@ git commit -m "updated stuff"             # missing type and scope
 git commit -m "feat(scope): this subject is way too long and exceeds the fifty character limit"
 ```
 
-### Generating Commits
+### Commit Message Template
 
-1. **Stage your changes**:
-   ```bash
-   git status                    # Review changed files
-   git add path/to/file.java     # Stage specific files
-   ```
+```
+<commit type>(<scope>): <subject>
+<BLANK LINE>
+<body>
+<BLANK LINE>
+<footer>
+```
 
-2. **Determine the type**:
-   - Is it a new feature? → `feat`
-   - Is it fixing a bug? → `fix`
-   - Is it refactoring existing code? → `refactor`
-   - Is it documentation only? → `docs`
-   - etc.
+**Example:**
+```
+feat(block): optimize the block-producing logic
 
-3. **Determine the scope**:
-   - Which module did you change? (e.g., `framework`, `vm`)
-   - Which feature area? (e.g., `api`, `config`)
+1. increase the priority that block producing thread acquires synchronization lock
+2. add the interruption exception handling in block-producing thread
 
-4. **Write the subject**:
-   - Start with lowercase verb (e.g., `add`, `fix`, `remove`, `update`)
-   - Keep under 50 characters
-   - No trailing period
+Closes #1234
+```
 
-5. **Create the commit**:
-   ```bash
-   git commit -m "type(scope): subject"
-   ```
+**Footer for issues:**
+- Single issue: `Closes #1234`
+- Multiple issues: `Closes #123, #245, #992`
+
+## Branch Strategy
+
+### Key Branches
+
+| Branch | Description |
+|--------|-------------|
+| `develop` | Main integration branch. Default PR target. Cannot be directly pushed to. |
+| `master` | Production releases. Only `release_*` and `hotfix/*` branches merge here. |
+| `release_*` | Release branches pulled from `develop`. Permanently kept. |
+| `feature/*` | Feature branches for important features. Pulled from `develop`. |
+| `hotfix/*` | Bug fix branches pulled from `master`. Used for post-release fixes. |
+
+### Branch Naming Conventions
+
+| Branch Type | Naming Pattern | Examples |
+|-------------|---------------|----------|
+| Master | `master` | master |
+| Development | `develop` | develop |
+| Release | Version number | `Odyssey-v3.1.3`, `3.1.3` |
+| Hotfix | `hotfix/<bug-description>` | `hotfix/typo`, `hotfix/null_point_exception` |
+| Feature | `feature/<feature-description>` | `feature/new_resource_model` |
+
+### Typical Workflow
+
+```bash
+# 1. Fork the repository
+# Go to https://github.com/tronprotocol/java-tron and click "Fork"
+
+# 2. Clone your fork
+git clone https://github.com/yourname/java-tron.git
+cd java-tron
+
+# 3. Add upstream remote
+git remote add upstream https://github.com/tronprotocol/java-tron.git
+
+# 4. Sync with upstream before developing
+git fetch upstream
+git checkout develop
+git merge upstream/develop --no-ff
+
+# 5. Create feature branch
+git checkout -b feature/your-feature-name develop
+
+# 6. Make changes and commit
+# ... edit files ...
+git add .
+git commit -m "feat(vm): add new opcode implementation"
+
+# 7. Push to your fork
+git push origin feature/your-feature-name
+
+# 8. Create PR on GitHub
+# Go to tronprotocol/java-tron and create PR from your branch
+```
 
 ## Templates
 
@@ -263,22 +324,30 @@ Code:
 ## Additional Information
 ```
 
-## Related Links
+## Code Review Guidelines
 
-- Repository: https://github.com/tronprotocol/java-tron
-- Documentation: https://tronprotocol.github.io/documentation-en/
-- Discord: https://discord.gg/cGKSsRVCGm
-- Telegram: https://t.me/TronOfficialDevelopersGroupEn
+### Terminology
 
-## Guidelines
+- **Author**: Entity who wrote the diff and submitted it to GitHub
+- **Team**: People with commit rights on the java-tron repository
+- **Reviewer**: Person assigned to review the diff (must be a team member)
+- **Code Owner**: Person responsible for the subsystem being modified
 
-### Before Submitting an Issue
-- Ensure you're using the latest version of java-tron
-- Search for duplicate issues
-- Review the official documentation
+### The Process
 
-### For General Questions
-Use Discord or Telegram for faster responses.
+1. PR is evaluated for worthiness (decision lies with code owner)
+2. Reviewers check style and functionality, providing comments via GitHub review system
+3. Author addresses feedback
+4. Approved PRs can be merged by any code owner
+
+### Code Style Requirements
+
+- Must conform to [Google Code Style](https://google.github.io/styleguide/javaguide.html)
+- Must pass Sonar scanner test
+- Must pass Travis CI continuous integration scanner
+- Code must be pulled from `develop` branch
+- Commit message should start with a verb (lowercase first letter)
+- Commit message should be under 50 characters
 
 ## CI Check Requirements
 
@@ -288,27 +357,20 @@ PRs will automatically undergo the following checks:
 
 **Format**: `type(scope): description`
 
-**Allowed types**:
-`feat`, `fix`, `refactor`, `docs`, `style`, `test`, `chore`, `ci`, `perf`, `build`, `revert`
+| Rule | Requirement |
+|------|-------------|
+| Format | `type(scope): description` |
+| Length | 10-72 characters |
+| Types | `feat`, `fix`, `refactor`, `docs`, `style`, `test`, `chore`, `ci`, `perf`, `build`, `revert` |
+| Description | Must not start with capital letter, must not end with period |
 
 **Known scopes**:
 `framework`, `chainbase`, `actuator`, `consensus`, `common`, `crypto`, `plugins`, `protocol`, `net`, `db`, `vm`, `tvm`, `api`, `jsonrpc`, `rpc`, `http`, `event`, `config`, `block`, `proposal`, `trie`, `log`, `metrics`, `test`, `docker`, `version`, `freezeV2`, `DynamicEnergy`, `stable-coin`, `reward`, `lite`, `toolkit`
 
-**Other rules**:
-- Title length: 10-72 characters
-- Description must not start with a capital letter
-- Must not end with a period `.`
-
-**Examples**:
-```
-feat(vm): add optimized BN128 precompiled contracts
-fix(chainbase): resolve deadlock in transaction processing
-```
-
 ### 2. PR Description Check
 
 - Minimum 20 characters
-- Must explain what was changed and why
+- Must explain **what** was changed and **why**
 
 ### 3. Checkstyle Check
 
@@ -349,25 +411,46 @@ git add path/to/file.java
 git diff
 ```
 
-## Branch Strategy
+## Special Situations
 
-- **develop**: Main integration branch (default PR target)
-- **master**: Production releases
+| Situation | How to Deal |
+|-----------|-------------|
+| Author doesn't follow up | Ping after a few days. If no response, close PR or complete work yourself. |
+| Author mixes refactoring with bug fix | Ask author to separate into independent PRs or commits. |
+| Author keeps rejecting feedback | Reviewers have authority to reject. Ask team for second opinion if unsure. Close PR if no consensus. |
 
-### Typical Workflow
+## Conduct
 
-```bash
-# 1. Create a feature branch from develop
-git checkout develop
-git pull
-git checkout -b feature/your-feature-name
+While contributing, please be respectful and constructive. Participation in the project should be a positive experience for everyone.
 
-# 2. Make changes and commit
-# ... edit files ...
-git add .
-git commit -m "feat(vm): add new opcode implementation"
+**Acceptable behavior:**
+- Using welcoming and inclusive language
+- Being respectful of differing viewpoints and experiences
+- Gracefully accepting constructive criticism
+- Focusing on what is best for the community
+- Showing empathy towards other community members
 
-# 3. Push and create PR
-git push -u origin feature/your-feature-name
-# Then create PR on GitHub targeting 'develop'
-```
+**Unacceptable behavior:**
+- Sexualized language or imagery
+- Trolling, insulting/derogatory comments, personal or political attacks
+- Public or private harassment
+- Publishing others' private information without permission
+- Other inappropriate conduct in a professional setting
+
+## Related Links
+
+- Repository: https://github.com/tronprotocol/java-tron
+- Documentation: https://tronprotocol.github.io/documentation-en/
+- TIP Repository: https://github.com/tronprotocol/tips
+- Discord: https://discord.gg/cGKSsRVCGm
+- Telegram: https://t.me/TronOfficialDevelopersGroupEn
+
+## Guidelines
+
+### Before Submitting an Issue
+- Ensure you're using the latest version of java-tron
+- Search for duplicate issues
+- Review the official documentation
+
+### For General Questions
+Use Discord or Telegram for faster responses.
