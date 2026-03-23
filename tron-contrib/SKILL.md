@@ -175,7 +175,7 @@ git push origin feature/your-feature-name
 
 ### Issue Templates
 
-#### 1. Bug Report (`[BUG]`)
+#### 1. Bug Report (`[Bug]`)
 
 ```markdown
 ## Bug Description
@@ -216,31 +216,19 @@ Code:
 ```
 ```
 
-## Additional Context
+## Additional Context (Optional)
 
 **Related Issues**
 
 **Possible Solution**
 ```
 
-#### 2. Feature Request (`[FEATURE]`)
+#### 2. Feature Request (`[Feature]`)
 
 ```markdown
-## Background
-
 ## Problem Statement
 
-## Rationale
-
-**Why should this feature exist?**
-
-**What are the use cases?**
-
-1.
-2.
-3.
-
-**Who would benefit from this feature?**
+<!-- Describe the problem this feature solves, the context/motivation, and who would benefit -->
 
 ## Proposed Solution
 
@@ -250,58 +238,62 @@ Code:
 
 **Configuration Changes**
 
-**Protocol Changes**
-
-## Testing Strategy
-
-**Test Scenarios**
-
-1.
-2.
-3.
-
-**Performance Considerations**
+**Protocol Changes** (if applicable)
+<!-- Describe any changes to the TRON protocol -->
 
 ## Scope of Impact
 
-- [ ] Core protocol
-- [ ] API/RPC
-- [ ] Database
-- [ ] Network layer
-- [ ] Smart contracts
-- [ ] Documentation
-- [ ] Other:
+<!-- Select the system components that will be affected by this feature:
+- Core protocol
+- API/RPC
+- Database
+- Network layer
+- Smart contracts
+- Documentation
+- Others, please specify
+-->
 
 **Breaking Changes**
+<!-- Will this feature introduce any breaking changes? -->
 
 **Backward Compatibility**
+<!-- How will backward compatibility be maintained? -->
 
 ## Implementation
 
 **Do you have ideas regarding the implementation?**
+<!-- Describe any ideas, prototypes, or implementation details -->
 
 **Are you willing to implement this feature?**
-- [ ] Yes, I can implement this feature
-- [ ] I can help with implementation
-- [ ] I need help with implementation
-- [ ] I'm just suggesting the idea
+<!-- Let us know if you'd like to contribute the implementation -->
 
 **Estimated Complexity**
-- [ ] Low (minor changes)
-- [ ] Medium (moderate changes)
-- [ ] High (significant changes)
-- [ ] Unknown
+<!-- Your assessment of implementation complexity, choose among
+- Low (minor changes)
+- Medium (moderate changes)
+- High (significant changes)
+- Unknown
+-->
 
-## Alternatives Considered
+## Testing Strategy
 
-## Additional Context
+<!-- How should this feature be tested? -->
 
-**Related Issues/PRs**
+**Test Scenarios**
 
-**References**
+**Performance Considerations**
+<!-- Describe any performance implications -->
+
+## Alternatives Considered (Optional)
+
+<!-- Describe any alternative solutions or features you've considered -->
+
+## Additional Context (Optional)
+
+<!-- Add any other context, mockups, diagrams, or examples -->
 ```
 
-#### 3. Question (`[QUESTION]`)
+#### 3. Question (`[Question]`)
 
 ```markdown
 ## Question
@@ -321,7 +313,7 @@ Code:
 - Operating System:
 - Java version:
 
-## Additional Information
+## Additional Information (Optional)
 ```
 
 ## Code Review Guidelines
