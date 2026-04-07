@@ -8,6 +8,8 @@ A collection of Skills for TRON blockchain development.
 |-------|-------------|
 | [tron-contrib](#tron-contrib) | Generate PR titles, Issue templates, and commit messages for tronprotocol/java-tron |
 | [tron-tip](#tron-tip) | Generate TRON Improvement Proposals (TIPs) in the official format |
+| [tron-pr-review](#tron-pr-review) | PR code review for java-tron with copy-paste-ready GitHub inline comments |
+| [tron-issue-comment](#tron-issue-comment) | Write copy-paste-ready GitHub issue comments for tronprotocol/java-tron |
 
 ---
 
@@ -79,6 +81,62 @@ refactor(config): extract CLIParameter and restructure Args init flow
 "Create a TIP for a new token standard similar to ERC-1155"
 "Help me draft a TIP to add a new opcode to TVM"
 "Generate a TIP template for a networking protocol improvement"
+```
+
+---
+
+### tron-pr-review
+
+**Path**: `tron-pr-review/`
+
+**Description**: PR code review for java-tron (tronprotocol/java-tron). Produces copy-paste-ready GitHub inline comments grouped by file with verified line numbers and severity tags.
+
+**Usage**:
+```bash
+/tron-pr-review
+```
+
+**Features**:
+
+- **Inline Comments** - Grouped by file with exact line numbers verified against source
+- **Severity Tags** - `[Critical]` `[High]` `[Medium]` `[Low]` `[Nit]`
+- **Review Categories** - Security, Business Logic, Behavioral Compatibility, Lifecycle & Resource Safety, Concurrency, Test Quality, Code Style
+- **Verdict Summary** - `LGTM`, `LGTM with nits`, or `Changes requested (N blockers)`
+
+**Trigger phrases**:
+```
+"review this PR"
+"review the diff"
+"/tron-pr-review"
+"帮我review"
+```
+
+---
+
+### tron-issue-comment
+
+**Path**: `tron-issue-comment/`
+
+**Description**: Write copy-paste-ready GitHub issue comments for tronprotocol/java-tron. Covers bug analysis, feature request feedback, needs-more-info, and close/resolve replies.
+
+**Usage**:
+```bash
+/tron-issue-comment
+```
+
+**Features**:
+
+- **Bug Analysis** - Root cause, affected component, fix direction
+- **Feature Request Feedback** - Assessment, trade-offs, recommendation (Accept / Defer / Needs TIP / Won't implement)
+- **Needs More Info** - Structured checklist for reproduction steps, version, logs, config
+- **Close / Resolve** - Fixed, duplicate, won't-fix, or out-of-scope closers
+
+**Trigger phrases**:
+```
+"write an issue comment"
+"reply to this issue"
+"帮我回复这个issue"
+"/tron-issue-comment"
 ```
 
 ---
