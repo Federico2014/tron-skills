@@ -10,6 +10,7 @@ A collection of Skills for TRON blockchain development.
 | [tron-tip](#tron-tip) | Generate TRON Improvement Proposals (TIPs) in the official format |
 | [tron-pr-review](#tron-pr-review) | PR code review for java-tron with copy-paste-ready GitHub inline comments |
 | [tron-issue-comment](#tron-issue-comment) | Write copy-paste-ready GitHub issue comments for tronprotocol/java-tron |
+| [weekly-report](#weekly-report) | Auto-collect data from Slack & GitHub to generate Federico's weekly report |
 
 ---
 
@@ -137,6 +138,44 @@ refactor(config): extract CLIParameter and restructure Args init flow
 "reply to this issue"
 "帮我回复这个issue"
 "/tron-issue-comment"
+```
+
+---
+
+### weekly-report
+
+**Path**: `weekly-report/`
+
+**Description**: Auto-collect work data from Slack and GitHub, generate Federico's weekly report in Confluence table format (This Week's Work / Issues Encountered / Next Week's Plan).
+
+**Usage**:
+```bash
+/weekly-report
+```
+
+**Features**:
+
+- **Auto Time Range** - Calculates last Friday 12:00 → this Friday 12:00
+- **Multi-Source Collection** - Slack daily notes, GitHub PRs/commits/reviews/issues
+- **Three-Table Output** - This Week's Work, Issues Encountered, Next Week's Plan
+- **Smart Carry-Forward** - Incomplete items auto-populate next week's plan
+- **Confluence Format** - Output in XHTML Storage Format for direct paste
+
+**Data Sources**:
+
+| Source | Tool |
+|--------|------|
+| Slack daily-ai-assistant | Slack MCP |
+| GitHub (Federico2014) | `gh` CLI |
+| GitHub (tronprotocol) | `gh` CLI |
+| Confluence | Atlassian MCP (pending) |
+
+**Trigger phrases**:
+```
+"写周报"
+"生成周报"
+"weekly report"
+"/weekly-report"
 ```
 
 ---
