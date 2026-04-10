@@ -11,6 +11,7 @@ A collection of Skills for TRON blockchain development.
 | [tron-pr-review](#tron-pr-review) | PR code review for java-tron with copy-paste-ready GitHub inline comments |
 | [tron-issue-comment](#tron-issue-comment) | Write copy-paste-ready GitHub issue comments for tronprotocol/java-tron |
 | [weekly-report](#weekly-report) | Auto-collect data from Slack & GitHub to generate Federico's weekly report |
+| [bugbounty](#bugbounty) | Review HackerOne bug bounty reports against java-tron code and publish analysis to Confluence |
 
 ---
 
@@ -176,6 +177,38 @@ refactor(config): extract CLIParameter and restructure Args init flow
 "生成周报"
 "weekly report"
 "/weekly-report"
+```
+
+---
+
+### bugbounty
+
+**Path**: `bugbounty/`
+
+**Description**: Review HackerOne bug bounty reports against the java-tron codebase. Fetches report details via HackerOne MCP, performs deep code analysis on the develop branch, assesses vulnerability validity, and publishes structured analysis to Confluence.
+
+**Usage**:
+```bash
+/bugbounty
+```
+
+**Features**:
+
+- **Report Fetching** - Retrieves HackerOne reports by number via MCP (GraphQL or REST API)
+- **Code Analysis** - Traces all callers, validates PoC, checks existing mitigations
+- **Verdict System** - Valid / Partially Valid / Invalid / Informational / Already Fixed
+- **Confluence Publishing** - Creates child page under java-tron BugBounty with structured analysis
+
+**Analysis Patterns**:
+- DoS vulnerabilities: reachability, rate limiting, exception handling
+- Crypto/Signature issues: production code path, dependency versions
+- Serialization issues: input validation, resource consumption bounds
+
+**Trigger phrases**:
+```
+"review bug bounty"
+"analyze hackerone report"
+"/bugbounty"
 ```
 
 ---
