@@ -218,79 +218,57 @@ Code:
 
 ## Additional Context (Optional)
 
+**Screenshots**
+<!-- If applicable, add screenshots to help explain the problem -->
+
 **Related Issues**
+<!-- Link to any related issues or pull requests -->
 
 **Possible Solution**
+<!-- If you have suggestions on how to fix the bug, describe them here -->
 ```
 
 #### 2. Feature Request (`[Feature]`)
 
 ```markdown
-## Problem Statement
+# Summary
+<!-- Provide a concise description of the problem and the proposed solution.-->
 
-<!-- Describe the problem this feature solves, the context/motivation, and who would benefit -->
+# Problem
+### Motivation
+<!-- Describe the context or motivation if necessary. -->
 
-## Proposed Solution
+### Current State
+<!-- Describe the current behavior of the system. -->
 
-### Specification
+### Limitations or Risks
+<!-- Explain the limitations, risks, or inefficiencies. -->
 
-**API Changes**
+# Proposed Solution
 
-**Configuration Changes**
+### Proposed Design
+<!-- Describe the proposed solution at a high level. Implementation details are optional but encouraged if relevant.-->
 
-**Protocol Changes** (if applicable)
-<!-- Describe any changes to the TRON protocol -->
+### Key Changes
+<!-- List the main areas affected by this proposal, such as Module(s), Configuration and API. -->
 
-## Scope of Impact
+# Impact
+<!-- Assess the expected impact of this change, such as Security, Stability, Performance, Developer Experience   -->
 
-<!-- Select the system components that will be affected by this feature:
-- Core protocol
-- API/RPC
-- Database
-- Network layer
-- Smart contracts
-- Documentation
-- Others, please specify
+# Compatibility
+<!--
+*   Breaking Change: Yes / No
+*   Default Behavior Change:
+*   Migration Required:
+Provide details if any of the above is applicable.
 -->
 
-**Breaking Changes**
-<!-- Will this feature introduce any breaking changes? -->
+# References (Optional)
+<!-- TIPs, papers, related issues, prior art -->
 
-**Backward Compatibility**
-<!-- How will backward compatibility be maintained? -->
-
-## Implementation
-
-**Do you have ideas regarding the implementation?**
-<!-- Describe any ideas, prototypes, or implementation details -->
-
-**Are you willing to implement this feature?**
-<!-- Let us know if you'd like to contribute the implementation -->
-
-**Estimated Complexity**
-<!-- Your assessment of implementation complexity, choose among
-- Low (minor changes)
-- Medium (moderate changes)
-- High (significant changes)
-- Unknown
--->
-
-## Testing Strategy
-
-<!-- How should this feature be tested? -->
-
-**Test Scenarios**
-
-**Performance Considerations**
-<!-- Describe any performance implications -->
-
-## Alternatives Considered (Optional)
-
-<!-- Describe any alternative solutions or features you've considered -->
-
-## Additional Context (Optional)
-
-<!-- Add any other context, mockups, diagrams, or examples -->
+# Additional Notes
+- Do you have ideas regarding implementation? Yes / No
+- Are you willing to implement this feature? Yes / No
 ```
 
 #### 3. Question (`[Question]`)

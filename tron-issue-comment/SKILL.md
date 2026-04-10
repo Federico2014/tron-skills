@@ -93,8 +93,9 @@ Thanks for filing this.
 
 To investigate further, could you provide:
 
-- **java-tron version**: (`git log -1 --oneline` or release tag)
+- **java-tron version**: (`java -jar FullNode.jar -v` or release tag)
 - **Network**: Mainnet / Nile testnet / private net
+- **OS / JVM**: (e.g., Ubuntu 20.04, JDK 1.8.0_391)
 - **Reproduction steps**: minimal sequence to trigger the issue
 - **Logs**: relevant output from `logs/tron.log` around the time of the error (stack trace if available)
 - **Node config**: any non-default settings in `config.conf` related to this area
