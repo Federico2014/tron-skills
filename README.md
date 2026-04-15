@@ -12,6 +12,7 @@ A collection of Skills for TRON blockchain development.
 | [tron-issue-comment](#tron-issue-comment) | Write copy-paste-ready GitHub issue comments for tronprotocol/java-tron |
 | [weekly-report](#weekly-report) | Auto-collect data from Slack & GitHub to generate Federico's weekly report |
 | [bugbounty](#bugbounty) | Review HackerOne bug bounty reports against java-tron code and publish analysis to Confluence |
+| [okr-advisor](#okr-advisor) | Analyze current quarter OKR, cross-reference with GitHub/Slack/Confluence, and recommend prioritized tasks |
 
 ---
 
@@ -209,6 +210,43 @@ refactor(config): extract CLIParameter and restructure Args init flow
 "review bug bounty"
 "analyze hackerone report"
 "/bugbounty"
+```
+
+---
+
+### okr-advisor
+
+**Path**: `okr-advisor/`
+
+**Description**: Analyze Federico's current quarter OKR from a local xlsx file, cross-reference with actual work output from GitHub, Slack, and Confluence, then recommend prioritized tasks based on weight and time pressure.
+
+**Usage**:
+```bash
+/okr-advisor
+```
+
+**Features**:
+
+- **OKR Parsing** - Reads xlsx file, auto-selects current quarter sheet, builds O→KR→P tree with composite weights
+- **Multi-Source Cross-Reference** - Matches each action item against GitHub PRs/commits, Slack messages, and Confluence weekly reports
+- **Priority Algorithm** - Ranks KRs by composite weight × time pressure (behind_degree)
+- **Actionable Recommendations** - Specific next-step suggestions for each KR, not generic advice
+
+**Data Sources**:
+
+| Source | Tool |
+|--------|------|
+| OKR xlsx | python3 + openpyxl |
+| GitHub (Federico2014, tronprotocol) | `gh` CLI |
+| Slack daily-ai-assistant | `curl` + Bot Token |
+| Confluence weekly reports | Atlassian MCP |
+
+**Trigger phrases**:
+```
+"what should I work on"
+"OKR status"
+"recommend tasks"
+"/okr-advisor"
 ```
 
 ---
