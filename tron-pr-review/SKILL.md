@@ -44,16 +44,30 @@ Group by file. For each finding:
 
 ```
 **path/to/File.java:LINE**
-[Severity] Problem description.
+[TAG] Problem description.
 Suggestion or corrected snippet (if applicable).
 ```
 
-Severity: `[Critical]` `[High]` `[Medium]` `[Low]` `[Nit]`
+Tags and their meaning:
 
+| Tag | Meaning | Blocks merge? |
+|-----|---------|--------------|
+| `[MUST]` | Correctness or security issue — must fix | Yes |
+| `[SHOULD]` | Strongly recommended — affects quality or maintainability | Recommended |
+| `[NIT]` | Minor detail — can be skipped | No |
+| `[QUESTION]` | Pure question, no change required | No |
+| `[DISCUSS]` | Needs discussion before deciding | Depends on conclusion |
+
+**Comment writing rules**:
+- Be direct: state what the problem is, where, and how to fix it — no lengthy preamble
+- Group all minor issues of the same type (e.g., formatting) into a single comment instead of multiple separate ones
+- If deep discussion is needed, move it to the PR main thread, not inline
+
+Output rules:
 - No `>` blockquote prefix — plain text for direct GitHub copy-paste
 - One finding per block, blank line between blocks
 - Omit files with no issues
-- End with one-line verdict: `LGTM`, `LGTM with nits`, or `Changes requested (N blockers)`
+- End with one-line verdict: `LGTM`, `LGTM with nits`, or `Changes requested (N [MUST] blockers)`
 
 ---
 
@@ -88,21 +102,33 @@ Plain text only, ready to paste. No preamble, no "Here is the reply:" wrapper.
 
 Work through each category. Skip silently if nothing found.
 
+### PR Scope
+- More than 10 non-test files changed across 2+ unrelated modules → flag for splitting (`[MUST]` if clearly unrelated, `[SHOULD]` otherwise)
+- Exception: bulk code relocation, or new feature with pre-approved design
+
 ### Security
 - Input not validated at boundaries (user input, external APIs, RPC params)
 - Signature / crypto logic errors — wrong curve, missing verification, malleability
-- `java.lang.Math` used directly → must use `org.tron.common.math.StrictMathWrapper`
+- `java.lang.Math` or `Maths` used directly → must use `org.tron.common.math.StrictMathWrapper`
 - Sensitive data logged or exposed in error messages
+
+### Numeric Safety
+- Floating-point arithmetic in consensus code → must use `BigDecimal` or `BigInteger`
+- Integer arithmetic without overflow protection → use `StrictMathWrapper.xxxExact` series
+- Type casting without range check → use `Math.toIntExact` / `xxxExact` equivalents
+- Fee / energy / bandwidth calculation overflow or underflow
 
 ### Business Logic
 - Actuator `validate()` missing preconditions; `execute()` mutating state without prior validation
-- Fee / energy / bandwidth calculation overflow or underflow
 - `Any.unpack()` missing type guard
 - Partial state updates leaving chain in inconsistent state
+- Consensus-related change with no hard fork impact explanation
 
 ### Behavioral Compatibility
 - Protocol / consensus change detectable by other nodes (potential mainnet fork)
 - HTTP / gRPC / JSON-RPC response shape change
+- DB schema change without backward compatibility explanation
+- Config file change (`config.conf` etc.) not updated in sync
 - Implicit invariants broken: ordering, idempotency, cardinality
 
 ### Lifecycle & Resource Safety
@@ -115,11 +141,28 @@ Work through each category. Skip silently if nothing found.
 - Race between task `submit` and executor shutdown
 - Missing `volatile`, improper `synchronized` scope
 
+### Code Quality
+- Debug artifacts: `System.out.println`, leftover `TODO`, temporary comments
+- High-frequency path with redundant `INFO`/`WARN` logs
+- Complex logic without comments
+- Ambiguous or misleading variable / method / class names
+
 ### Test Quality
 - Missing edge cases: null, empty, boundary, concurrent access
 - Flaky patterns: `Thread.sleep`, wall-clock assertions, shared static state
 - Tests that mock so deep they no longer exercise real logic
+- Only happy-path coverage — no exception or boundary branches
 
 ### Code Style (framework / plugins modules only)
 - Line > 100 chars, star imports, wrong indentation (2 spaces, 4 for continuation)
 - Commit subject > 50 chars or wrong format: `type(scope): lowercase-verb …`
+
+### AI-Generated Code Signals
+Flag with `[SHOULD]` when multiple of the following appear together:
+- Style inconsistency within the same PR — some sections feel unusually "polished"
+- Functionally correct but introduces unnecessary object creation, lock contention, or I/O on hot paths
+- Comments are detailed but don't accurately describe the actual implementation
+- Excessive defensive code: redundant null checks, repeated boundary validation
+- Happy-path tests look complete but exception and edge branches are missing
+
+When 3+ signals are present, add a `[MUST]` asking the submitter to explain the logic section by section.

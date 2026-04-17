@@ -21,6 +21,41 @@ java-tron is an open-source project that welcomes contributions from anyone. The
 1. **Small fixes**: Send a pull request (PR) with a detailed description
 2. **Complex changes**: Submit an issue to the [TIP repository](https://github.com/tronprotocol/tips) detailing your motive and implementation plan
 
+## PR Submission Rules
+
+### Single Module Principle
+
+- **One PR = one problem**. Do not mix unrelated bugfixes or features.
+- Split by module boundary: changes touching `net`, `consensus`, `db`, `api`, `event` etc. separately. If modules are tightly coupled (e.g. interface change requires updating callers), explain the dependency in the PR description.
+- **Size limit**: excluding test file changes, **modified file count must not exceed 10**. If a PR's diff spans 2+ independent modules and exceeds this limit, split it.
+  - Exceptions: bulk code relocation, or new feature with a pre-approved design doc.
+
+### Pre-submit Checklist
+
+Before opening a PR, verify all of the following:
+
+| Item | Rule |
+|------|------|
+| Code style | Conforms to [Google Java Style Guide](https://google.github.io/styleguide/javaguide.html), passes Checkstyle |
+| No debug artifacts | No `System.out.println`, no leftover temporary comments, no unresolved `TODO` |
+| Numeric safety | 1. No `java.lang.Math` or `Maths` helper class — use `StrictMathWrapper` directly. 2. No floating-point in consensus code — use `BigDecimal` / `BigInteger` / `xxxExact`. 3. Type casts use range-checking methods (`xxxExact`). |
+| Log levels | Avoid `INFO`/`WARN` on high-frequency code paths |
+| DB change | Include backward compatibility explanation |
+| Consensus change | Document hard fork impact and which node versions need upgrading |
+| Config change | Sync updates to `config.conf` and all related config files |
+| Dependency upgrade | State upgrade reason and compatibility verification result |
+| Comments | Complex logic must have inline comments |
+| Naming | No ambiguous, misleading, or hard-to-read variable / method / class names |
+
+### Keeping the PR Updated
+
+- Respond to review comments **within 3 business days** (acknowledge, push back, or explain progress).
+- After code changes: **Resolve conversation** on the relevant comment or leave a reply, and update the PR description with a change summary.
+- If blocked by leave or a dependency, arrange a substitute reviewer.
+- PRs with **no update for 3+ business days without explanation** will be pinged by the maintainer and may be marked stale.
+
+---
+
 ## Commit Message Format
 
 ### Format
@@ -155,6 +190,18 @@ git push origin feature/your-feature-name
 # Go to tronprotocol/java-tron and create PR from your branch
 ```
 
+## Merge Strategy
+
+Core principle: **feature into trunk → Squash; branch sync → Rebase; merge commit → disabled by default**.
+
+| Method | When to use | Branch direction |
+|--------|-------------|-----------------|
+| **Squash and Merge** | Feature PRs | `feature → develop / release_xxx / master` — squashes iteration commits into one, keeps trunk history clean |
+| **Rebase and Merge** | Branch sync | `release_xxx → master`, `master → develop` — preserves individual feature commits, avoids meaningless merge nodes |
+| **Create a merge commit** | Almost never | Only in special cases where an explicit merge record is needed |
+
+---
+
 ## Templates
 
 ### Pull Request Template
@@ -167,6 +214,19 @@ git push origin feature/your-feature-name
 **This PR has been tested by:**
 - Unit Tests
 - Manual Testing
+
+**Checklist**
+- [ ] Single module — this PR only touches one problem / one module boundary
+- [ ] No `java.lang.Math` or `Maths` — uses `StrictMathWrapper` instead
+- [ ] No floating-point in consensus code
+- [ ] No `System.out.println` or leftover TODOs
+- [ ] Complex logic has comments
+- [ ] If consensus change: hard fork impact explained and node version range noted
+- [ ] If DB change: backward compatibility explained
+- [ ] If config change: `config.conf` and related files updated
+
+<!-- AI assistance disclosure (encouraged, not required) -->
+<!-- > AI 辅助说明：本 PR 部分代码借助 AI 工具生成，已逐行审查，提交者承担完全责任。-->
 
 **Follow up**
 
@@ -307,8 +367,16 @@ Provide details if any of the above is applicable.
 
 1. PR is evaluated for worthiness (decision lies with code owner)
 2. Reviewers check style and functionality, providing comments via GitHub review system
-3. Author addresses feedback
-4. Approved PRs can be merged by any code owner
+3. Author addresses feedback within 3 business days
+4. Approved PRs can be merged once merge requirements are met
+
+### Merge Requirements
+
+- At least **2 reviewer Approvals** (both must be core maintainers of the affected module)
+- Changes to consensus, storage, or network core paths: **3 Approvals required**
+- All CI checks (build, unit tests, Checkstyle) must pass
+- All `[MUST]` comments must be resolved
+- Submitter may not Approve their own PR (including via alt accounts)
 
 ### Code Style Requirements
 
@@ -385,9 +453,33 @@ git diff
 
 | Situation | How to Deal |
 |-----------|-------------|
-| Author doesn't follow up | Ping after a few days. If no response, close PR or complete work yourself. |
+| Author doesn't follow up | Ping after 3 business days. If no response, maintainer marks stale; closed after 7 more days. |
 | Author mixes refactoring with bug fix | Ask author to separate into independent PRs or commits. |
 | Author keeps rejecting feedback | Reviewers have authority to reject. Ask team for second opinion if unsure. Close PR if no consensus. |
+
+### Hotfix
+
+- Mainnet emergency fixes may use an **accelerated path**: 1 core maintainer Approve is sufficient to merge.
+- Must be followed up within 7 days with complete tests and documentation.
+
+### AI-Assisted Code
+
+Allowed: AI tools for code completion, logic suggestions, test generation.
+
+Prohibited: submitting AI output without fully understanding it. Before submitting, you must be able to:
+- Explain every line of logic and its meaning in the java-tron context
+- Justify why this implementation is better than alternatives
+- Answer any follow-up question from reviewers in depth
+
+Prohibited in consensus / storage / crypto modules: directly using AI-generated core logic — errors in these paths can cause irreversible on-chain state corruption.
+
+AI identifiers must not appear in commit author fields.
+
+Disclosure is encouraged (not required). Suggested format for PR description:
+```
+> AI 辅助说明：本 PR 部分代码（测试用例/注释/模板代码）借助 AI 工具生成，
+> 已逐行审查并验证，提交者对所有内容承担完全责任。
+```
 
 ## Conduct
 
