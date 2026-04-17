@@ -4,7 +4,7 @@ description: >
   Generate Federico's weekly work report for the javatronx Confluence space.
   Collects data from Slack (daily-ai-assistant channel), GitHub (Federico2014 and tronprotocol repos),
   and organizes into three tables: This Week's Accomplishments, Problems Encountered, Next Week's Plan.
-  Output in Confluence Storage Format or Markdown.
+  Output in ADF (Atlassian Document Format) with grey header backgrounds, ordered+nested bullet lists, and precise per-item status alignment.
   Trigger phrases: "write weekly report", "generate weekly report", "weekly report", "/weekly-report".
 ---
 
@@ -60,58 +60,131 @@ echo "Page name: Federico - $(echo $this_friday | tr -d '-')"
 
 Collect from all sources in parallel. Filter all results by time range.
 
-#### 2a. Slack: daily-ai-assistant Daily Notes
+> **Time zone note**: GitHub API dates are in UTC. The report range (last Friday 12:00 → this Friday 12:00 UTC+8) maps to UTC as `${last_friday}T04:00:00Z` → `${this_friday}T04:00:00Z`. Use these UTC bounds for all GitHub API date filtering.
 
-Read daily work notes using Slack MCP tools:
+#### 2a. Slack: Channel Messages
+
+**Accessible channels** (Bot Token only reads channels where Bot has been invited):
+
+| Channel | ID | Status |
+|---------|-----|--------|
+| `daily-ai-assistant` | `C0ARYHYLZ3Q` | ✅ 可访问 |
+| Other channels | — | ❌ 需在频道内执行 `/invite @Claude` |
 
 ```
 Tool: slack_get_channel_history
 Params: channel_id = "C0ARYHYLZ3Q", limit = 200
 ```
 
-**Important**: `slack_get_channel_history` does not support `oldest`/`latest` parameters. Fetch messages in bulk and filter by `ts` (Unix timestamp) to keep only messages within the time range.
+`slack_get_channel_history` 不支持时间过滤，拉取后按 `ts`（Unix 时间戳）筛选本周消息。`ts` 换算：`last_friday 12:00 UTC+8` = Unix `$(date -j -f "%Y-%m-%d %H:%M:%S" "${last_friday} 12:00:00" +%s)`.
 
-For messages with threads, use `slack_get_thread_replies` to get full context:
+有线程的消息补充拉取：
 ```
 Tool: slack_get_thread_replies
-Params: channel_id = "C0ARYHYLZ3Q", thread_ts = <parent message ts>
+Params: channel_id = "C0ARYHYLZ3Q", thread_ts = <parent ts>
 ```
 
-#### 2b. GitHub: Personal Repos (Federico2014)
+#### 2b. GitHub: All Activity via Events API
+
+**用 events API 代替 search API**——events API 覆盖所有仓库（个人 fork + 个人仓库 + org 仓库），`org:tronprotocol` 过滤会遗漏个人 fork 中的开发活动。
 
 ```bash
-# Commits in date range
-gh api "/search/commits?q=author:Federico2014+committer-date:${last_friday}..${this_friday}&sort=committer-date&per_page=100" \
-  --jq '.items[] | {repo: .repository.full_name, sha: .sha[0:7], message: .commit.message, date: .commit.committer.date, url: .html_url}'
+# 获取 Federico2014 所有公开事件（最近 ~90 天，最多 300 条）
+gh api "/users/Federico2014/events?per_page=100" | \
+  jq --arg s "${last_friday}T04:00:00Z" --arg e "${this_friday}T04:00:00Z" \
+  '[.[] | select(.created_at >= $s and .created_at <= $e)]' > /tmp/gh_events.json
 
-# PRs created
-gh api "/search/issues?q=author:Federico2014+type:pr+created:${last_friday}..${this_friday}&per_page=100" \
-  --jq '.items[] | {title: .title, number: .number, state: .state, url: .html_url, repo: (.repository_url | split("/") | .[-1])}'
+# 统计事件类型分布（快速概览）
+jq 'group_by(.type) | .[] | {type: .[0].type, repos: [.[].repo.name] | unique, count: length}' /tmp/gh_events.json
 ```
 
-#### 2c. GitHub: Organization Repos (tronprotocol)
+从缓存文件分别提取各类活动：
 
 ```bash
-# PRs authored (created or updated in range)
-gh api "/search/issues?q=author:Federico2014+org:tronprotocol+type:pr+updated:${last_friday}..${this_friday}&per_page=100" \
-  --jq '.items[] | {title: .title, number: .number, state: .state, url: .html_url, repo: (.repository_url | split("/") | .[-1])}'
+# PRs 创建/合并（含个人 fork 和 org）
+jq '.[] | select(.type == "PullRequestEvent") |
+  {action: .payload.action, number: .payload.pull_request.number,
+   repo: .repo.name, created_at: .created_at}' /tmp/gh_events.json
 
-# PRs reviewed
-gh api "/search/issues?q=reviewed-by:Federico2014+org:tronprotocol+type:pr+updated:${last_friday}..${this_friday}&per_page=100" \
-  --jq '.items[] | {title: .title, number: .number, url: .html_url, repo: (.repository_url | split("/") | .[-1])}'
+# PR Reviews 提交（含个人 fork 和 org）
+jq '.[] | select(.type == "PullRequestReviewEvent") |
+  {pr: .payload.pull_request.number, repo: .repo.name,
+   state: .payload.review.state, submitted_at: .payload.review.submitted_at,
+   body: (.payload.review.body // "" | .[0:150])}' /tmp/gh_events.json
 
-# Issues commented on
-gh api "/search/issues?q=commenter:Federico2014+org:tronprotocol+updated:${last_friday}..${this_friday}&per_page=100" \
-  --jq '.items[] | {title: .title, number: .number, url: .html_url, repo: (.repository_url | split("/") | .[-1])}'
+# Issue/PR 评论
+jq '.[] | select(.type == "IssueCommentEvent") |
+  {number: .payload.issue.number, repo: .repo.name,
+   created_at: .created_at, url: .payload.comment.html_url,
+   body: (.payload.comment.body | .[0:150])}' /tmp/gh_events.json
+
+# Commits pushed
+jq '.[] | select(.type == "PushEvent") |
+  {repo: .repo.name, ref: .payload.ref, created_at: .created_at,
+   commits: [.payload.commits[]?.message | split("\n")[0]]}' /tmp/gh_events.json
 ```
 
-#### 2d. Present Raw Data Summary
+**获取 PR 详情**（events 中 PR title 有时为 null，需单独请求）：
+```bash
+gh api "/repos/{owner}/{repo}/pulls/{number}" \
+  --jq '{title: .title, url: .html_url, body: (.body | .[0:300])}'
+```
 
-After collection, present a structured summary organized by source:
-- Slack daily notes summary
-- GitHub PRs (authored / reviewed)
-- GitHub Issues (commented)
-- GitHub Commits
+#### 2c. GitHub: Review & Comment 详情补全
+
+Events API 提供的 review/comment 内容有时被截断，需补充拉取完整内容及精确链接：
+
+**PR review 内联评论**（inline comments 不在 PullRequestReviewEvent 中，需单独拉）：
+```bash
+gh api "/repos/{owner}/{repo}/pulls/{number}/comments" | \
+  jq --arg s "${last_friday}T04:00:00Z" --arg e "${this_friday}T04:00:00Z" \
+  '.[] | select(.user.login == "Federico2014" and .created_at >= $s and .created_at <= $e) |
+   {url: .html_url, body: (.body | .[0:200])}'
+```
+
+Review 直链格式：`https://github.com/{owner}/{repo}/pull/{number}#pullrequestreview-{review_id}`
+
+**Issue 评论完整内容**（events 中 body 已有，但如需完整内容）：
+```bash
+gh api "/repos/{owner}/{repo}/issues/{number}/comments" | \
+  jq --arg s "${last_friday}T04:00:00Z" --arg e "${this_friday}T04:00:00Z" \
+  '.[] | select(.user.login == "Federico2014" and .created_at >= $s and .created_at <= $e) |
+   {url: .html_url, body: (.body | .[0:300])}'
+```
+
+`html_url` 即直达评论链接。
+
+> **`gh api` + `jq --arg` 注意**：`gh api --jq` 不支持 `--arg`，必须 pipe 给 `jq`：`gh api "..." | jq --arg key val '...'`
+
+#### 2d. Confluence: Pages Created or Updated
+
+```
+Tool: searchConfluenceUsingCql
+Params: cloudId = "troneco.atlassian.net"
+        cql = "space = 'javatronx' AND contributor = '62b993a8fbc1f7c647b76104' AND lastModified >= '${last_friday_date}' ORDER BY lastModified DESC"
+        limit = 50
+```
+
+`${last_friday_date}` 只取日期部分（如 `2026-04-11`）。
+
+**重要**：CQL `contributor`/`creator` 字段必须使用 Atlassian account ID，不能用邮箱。Federico 的 account ID 为 `62b993a8fbc1f7c647b76104`。
+
+同时执行两条查询并去重：
+1. **新建页面**：`space = 'javatronx' AND creator = '62b993a8fbc1f7c647b76104' AND created >= '${last_friday_date}'`
+2. **更新页面**：上方查询（涵盖本周参与编辑的所有页面）
+
+两条查询都返回的 → 新建；仅在查询 2 中的 → 更新。
+
+每条结果提取：`title`、`id`、`_links.webui`（页面 URL）、`lastModified`（更新时间）。
+
+#### 2e. Present Raw Data Summary
+
+采集完成后，按来源输出结构化摘要供下一步使用：
+- Slack 本周消息摘要
+- GitHub PRs（authored / reviewed）
+- GitHub Issues（commented）
+- GitHub Commits（pushed）
+- Confluence 页面（新建 / 更新）
 
 ### Step 3 — User Supplements
 
@@ -124,49 +197,63 @@ Wait for user response before proceeding.
 
 ### Step 4 — Generate Report
 
-Organize all collected and supplemented data into three tables. The report content (table headers, categories, status values) MUST be in **Chinese** as required by the Confluence template.
+Organize all collected and supplemented data into three tables using **ADF (Atlassian Document Format)**. All content MUST be in **Chinese**.
 
-#### Table 1: 本周完成 (This Week's Accomplishments)
+#### ADF Table Structure Rules
 
-| 任务类别 | 进展明细 | 进展状态 |
-|---------|---------|---------|
-| 项目相关 | **Sub-project name**<br/>- Specific work + PR/Issue links<br/>- Specific work + doc links | Status |
-| 日常工作 | Issue/PR Review, Bug Bounty, AI workflow, etc. | Status |
-| 临时任务 | Ad-hoc work items | Status |
+- Table `layout`: `"center"`, `width`: 882 (本周完成/下周计划) or 892 (遇到的问题)
+- Header row cells: `"background": "#f0f1f2"`, text **bold**
+- Data cells: `"background": "#ffffff"`
+- Column widths for 本周完成: `[136, 560, 185]`
+- Column widths for 遇到的问题: `[183, 411, 297]`
+- Column widths for 下周计划: `[179, 409, 294]`
 
-**Classification rules**:
-- **项目相关** (Project-related): Group by sub-project name (bolded). List specific work items under each sub-project with PR/Issue/doc links. Status should be precise per sub-project: `已完成`, `进行中`, `review中`, `待合并`, `CI 通过，待 review`, etc.
-- **日常工作** (Routine work): Code reviews (list each reviewed PR), issue analysis, bug bounty, AI workflow, hiring, etc.
-- **临时任务** (Ad-hoc tasks): On-duty rotation, interviews, meetings, and other non-routine items
-- Omit categories with no content
+#### Cell Content Structure
 
-#### Table 2: 遇到的问题 (Problems Encountered)
+**进展明细 / 计划简述 cells** — use `orderedList` at top level, each item has:
+- A `paragraph` with the sub-project/category name in **bold**
+- A nested `bulletList` with detail lines (links inline)
 
-| 问题类别 | 问题描述以及影响 | 需求 |
-|---------|----------------|------|
-| 技术类（方案、性能、缺陷、依赖、质量）| Problem + impact | 已修复/已规避/待解决 |
-| 资源类（权限、环境、数据、预算、设备）| | |
-| 协作类（跨团队、需求变更、审批）| | |
+**进展状态 / 优先级 cells** — use `orderedList` with one item per top-level item in the adjacent cell (numbered to match)
 
-**Writing rules**:
-- Each problem must state: what happened -> what the impact was -> current resolution (已修复/已规避/待解决)
-- Omit categories with no problems
-- If no problems this week, fill with "本周无"
+**All text must be Chinese**. PR/Issue/doc references are links embedded inline in text.
 
-#### Table 3: 下周计划 (Next Week's Plan)
+**描述语言规则**：所有工作描述必须用简洁中文概括实际贡献，禁止直接使用英文 PR 标题、commit message 或英文技术词组作为描述文本。PR/Issue 编号和链接可保留，但链接前后的描述文字必须是中文。例如：
+- ✅ `修复节点同步时的内存泄漏问题，` [PR #123](url)
+- ❌ `Fix memory leak in node sync` [PR #123](url)
 
-| 任务类型 | 计划简述 | 优先级 |
-|---------|---------|-------|
-| 项目相关 | Project name + planned work | 高/中/低 |
-| 日常工作 | Ongoing routine work | Priority |
-| 临时任务 | Known upcoming ad-hoc items | Priority |
-| 长期任务 | Long-term research/improvement items | Priority |
+#### Table 1: 本周完成（M月D日 — M月D日）
+
+Heading includes the date range: `本周完成（4月10日 — 4月17日）`
+
+Row categories (omit rows with no content):
+- **项目相关**: One numbered item per sub-project (bold title in Chinese + bullet details in Chinese + PR/doc links). Each bullet must describe the contribution in Chinese, not copy the PR/commit title.
+- **日常工作**: Numbered items for PR Review / Issue分析 / 漏洞赏金 / AI工作流 / 文档 etc., each with bullet sub-items:
+  - **PR Review**: One bullet per reviewed PR. Link text = `PR #N`，前置中文描述说明该 PR 的主要内容，后跟直达 review 链接（`#pullrequestreview-{id}`），再附 1 句中文说明 review 的主要意见或结论。
+  - **Issue分析**: One bullet per issue commented on. Link text = `#N`，前置中文描述说明该 Issue 的主题，后跟直达评论链接（`html_url`），再附 1 句中文说明评论要点。
+  - Only include reviews/comments whose timestamp falls within the report time range (verified in Step 2c).
+  - **文档**: One bullet per Confluence page created or updated (from Step 2e). Link to the page; indicate whether 新建 or 更新，加 1 句中文说明文档主要内容。若文档属于某个子项目，归入 项目相关 而非此处。
+- **临时任务**: Ad-hoc tasks described in Chinese (omit if empty)
+
+#### Table 2: 遇到的问题
+
+Only include rows that have actual content. If no problems: one row with `技术类（方案、性能、缺陷、依赖、质量）` and `本周无` in the description cell. Omit 资源类 and 协作类 rows if empty.
+
+Problem format (when problems exist):
+- **Bold** problem title, then bullet list: what happened → impact → resolution (已修复/已规避/待解决)
+
+#### Table 3: 下周计划
+
+Row categories (omit if no content):
+- **项目相关**: Carry forward unfinished items from Table 1; one numbered item per sub-project
+- **日常工作**: Ongoing routine work
+- **临时任务**: Known upcoming ad-hoc (omit if empty)
+- **长期任务**: Long-term research/improvement items
 
 **Derivation rules**:
-- Items from Table 1 with status other than `已完成` automatically carry forward to next week's plan
+- Items from Table 1 with status other than `已完成` automatically carry forward
 - In-progress PR reviews carry forward as "跟进 PR #N review 反馈"
 - Merge in any additional plans the user provides
-- Omit categories with no content
 
 ### Step 5 — User Review
 
@@ -190,8 +277,8 @@ Params: cloudId = "troneco.atlassian.net"
 Tool: updateConfluencePage
 Params: cloudId = "troneco.atlassian.net"
         pageId = <page ID from search result>
-        body = <generated report in markdown>
-        contentFormat = "markdown"
+        body = <generated report as ADF JSON string>
+        contentFormat = "adf"
         versionMessage = "Weekly report auto-generated"
 ```
 
@@ -201,86 +288,119 @@ If the page is not found, inform the user and output the report content for manu
 
 ## Output Format
 
-### Primary: Confluence Storage Format (XHTML)
+### Primary: ADF JSON (Atlassian Document Format)
 
-```html
-<h2>本周完成</h2>
-<table data-layout="default">
-<thead>
-<tr><th>任务类别</th><th>进展明细</th><th>进展状态</th></tr>
-</thead>
-<tbody>
-<tr>
-<td>项目相关</td>
-<td>
-<p><strong>子项目名</strong></p>
-<ul>
-<li>具体工作内容 <a href="https://github.com/Federico2014/java-tron/pull/9">PR #9</a></li>
-<li>具体工作内容 <a href="https://github.com/Federico2014/java-tron/pull/10">PR #10</a></li>
-</ul>
-</td>
-<td>PR #9 review 中<br/>PR #10 CI 通过，待 review</td>
-</tr>
-</tbody>
-</table>
+Use `contentFormat: "adf"` when calling `updateConfluencePage`. The body must be a valid ADF JSON string.
 
-<h2>遇到的问题</h2>
-<table data-layout="default">
-<thead>
-<tr><th>问题类别</th><th>问题描述以及影响</th><th>需求</th></tr>
-</thead>
-<tbody>
-<tr><td>技术类（方案、性能、缺陷、依赖、质量）</td><td>问题描述</td><td>已修复</td></tr>
-</tbody>
-</table>
+**Skeleton structure**:
 
-<h2>下周计划</h2>
-<table data-layout="default">
-<thead>
-<tr><th>任务类型</th><th>计划简述</th><th>优先级</th></tr>
-</thead>
-<tbody>
-<tr><td>项目相关</td><td>计划内容</td><td>高</td></tr>
-</tbody>
-</table>
+```json
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "本周完成（M月D日 — M月D日）"}]},
+    {
+      "type": "table",
+      "attrs": {"layout": "center", "width": 882},
+      "content": [
+        {
+          "type": "tableRow",
+          "content": [
+            {"type": "tableHeader", "attrs": {"colspan": 1, "rowspan": 1, "background": "#f0f1f2", "colwidth": [136]},
+             "content": [{"type": "paragraph", "content": [{"type": "text", "text": "任务类别", "marks": [{"type": "strong"}]}]}]},
+            {"type": "tableHeader", "attrs": {"colspan": 1, "rowspan": 1, "background": "#f0f1f2", "colwidth": [560]},
+             "content": [{"type": "paragraph", "content": [{"type": "text", "text": "进展明细", "marks": [{"type": "strong"}]}]}]},
+            {"type": "tableHeader", "attrs": {"colspan": 1, "rowspan": 1, "background": "#f0f1f2", "colwidth": [185]},
+             "content": [{"type": "paragraph", "content": [{"type": "text", "text": "进展状态", "marks": [{"type": "strong"}]}]}]}
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {"type": "tableCell", "attrs": {"colspan": 1, "rowspan": 1, "background": "#ffffff", "colwidth": [136]},
+             "content": [{"type": "paragraph", "content": [{"type": "text", "text": "项目相关"}]}]},
+            {
+              "type": "tableCell", "attrs": {"colspan": 1, "rowspan": 1, "background": "#ffffff", "colwidth": [560]},
+              "content": [{
+                "type": "orderedList", "attrs": {"order": 1},
+                "content": [{
+                  "type": "listItem",
+                  "content": [
+                    {"type": "paragraph", "content": [{"type": "text", "text": "子项目名", "marks": [{"type": "strong"}]}]},
+                    {"type": "bulletList", "content": [
+                      {"type": "listItem", "content": [{"type": "paragraph", "content": [
+                        {"type": "text", "text": "具体工作内容 "},
+                        {"type": "text", "text": "PR #9", "marks": [{"type": "link", "attrs": {"href": "https://github.com/..."}}]}
+                      ]}]}
+                    ]}
+                  ]
+                }]
+              }]
+            },
+            {
+              "type": "tableCell", "attrs": {"colspan": 1, "rowspan": 1, "background": "#ffffff", "colwidth": [185]},
+              "content": [{"type": "orderedList", "attrs": {"order": 1}, "content": [
+                {"type": "listItem", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "PR #9 review 中"}]}]}
+              ]}]
+            }
+          ]
+        }
+      ]
+    },
+    {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "遇到的问题"}]},
+    {"type": "table", "attrs": {"layout": "center", "width": 892}, "content": ["... colwidths: [183, 411, 297] ..."]},
+    {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "下周计划"}]},
+    {"type": "table", "attrs": {"layout": "center", "width": 884}, "content": ["... colwidths: [179, 409, 294] ..."]}
+  ]
+}
 ```
 
 ### Fallback: Markdown Tables
 
-Use standard Markdown tables when Confluence is not available, for preview or manual paste.
+Use standard Markdown tables only when Confluence is unavailable (preview or manual paste).
 
 ---
 
 ## Output Rules
 
-- **Language**: All table content, headers, categories, and status values MUST be in Chinese (matching the Confluence template)
-- **Links**: GitHub PR/Issue must include full URLs as hyperlinks
-- **Grouping**: Under 项目相关, group work by sub-project name (bolded), with bullet-pointed detail items beneath
-- **Status precision**: Match each sub-project's actual state — do not use generic "进行中" when a more specific status like "PR #9 review 中" applies
+- **Language**: All content MUST be in Chinese. PR/Issue numbers, repo names, and hyperlink hrefs are the only English-allowed elements. Never copy English PR titles, commit messages, or technical phrases as-is — always translate/summarize into concise Chinese descriptions.
+- **Format**: Always use ADF (`contentFormat: "adf"`) when publishing to Confluence
+- **Links**: Embed GitHub PR/Issue/doc links inline within text nodes using ADF link marks
+- **Grouping**: Use `orderedList` → `listItem` (bold title) → nested `bulletList` for each sub-project/category
+- **Status alignment**: 进展状态 / 优先级 column uses `orderedList` with items numbered to match the adjacent column
+- **Status precision**: Use specific status like "PR #9 review 中" not generic "进行中"
 - **Auto carry-forward**: Incomplete items from Table 1 automatically appear in Table 3
-- **Empty categories**: Omit from the table rather than leaving empty rows
+- **Empty rows**: Omit rather than leaving blank (exception: 技术类 row always present in 遇到的问题)
 - **Page naming**: `Federico - YYYYMMDD` (this Friday's date)
 
 ---
 
 ## Data Source Reference
 
-| Source | Tool | Key Parameters |
-|--------|------|---------------|
-| Slack daily notes | `slack_get_channel_history` | `channel_id: "C0ARYHYLZ3Q"`, `limit: 200` |
+| Source | Tool / API | Key Parameters |
+|--------|-----------|---------------|
+| Slack messages | `slack_get_channel_history` | `channel_id: "C0ARYHYLZ3Q"`, `limit: 200`；按 `ts` 过滤时间范围 |
 | Slack threads | `slack_get_thread_replies` | `channel_id`, `thread_ts` |
-| GitHub commits | `gh api /search/commits` | `author:Federico2014`, `committer-date:RANGE` |
-| GitHub PRs (personal) | `gh api /search/issues` | `author:Federico2014`, `type:pr`, `created:RANGE` |
-| GitHub PRs (org) | `gh api /search/issues` | `author:Federico2014`, `org:tronprotocol`, `type:pr`, `updated:RANGE` |
-| GitHub reviews | `gh api /search/issues` | `reviewed-by:Federico2014`, `org:tronprotocol`, `type:pr`, `updated:RANGE` |
-| GitHub issues | `gh api /search/issues` | `commenter:Federico2014`, `org:tronprotocol`, `updated:RANGE` |
-| Confluence (read) | `getConfluencePage` | `cloudId: "troneco.atlassian.net"`, `pageId`, `contentFormat: "markdown"` |
-| Confluence (search) | `searchConfluenceUsingCql` | `cloudId: "troneco.atlassian.net"`, `cql: "space = 'javatronx' AND title = '...'"` |
-| Confluence (write) | `updateConfluencePage` | `cloudId: "troneco.atlassian.net"`, `pageId`, `contentFormat: "markdown"` |
+| GitHub 全量活动 | `gh api /users/Federico2014/events` | `per_page=100`；覆盖所有仓库（personal + org）；日期用 UTC |
+| GitHub PR 详情 | `gh api /repos/{owner}/{repo}/pulls/{number}` | 补全 events 中 null 的 title/body |
+| GitHub review 内联评论 | `gh api /repos/{owner}/{repo}/pulls/{number}/comments` | 过滤 `user.login == "Federico2014"` 和 `created_at` 在 UTC 范围内 |
+| GitHub issue 评论 | `gh api /repos/{owner}/{repo}/issues/{number}/comments` | 过滤 `user.login == "Federico2014"` 和 `created_at` 在 UTC 范围内；`html_url` 为直达链接 |
+| Confluence 活动 | `searchConfluenceUsingCql` | `space='javatronx' AND contributor='62b993a8fbc1f7c647b76104' AND lastModified>='YYYY-MM-DD'`；必须用 account ID |
+| Confluence 读取 | `getConfluencePage` | `cloudId: "troneco.atlassian.net"`, `pageId`, `contentFormat: "markdown"` |
+| Confluence 搜索 | `searchConfluenceUsingCql` | `space='javatronx' AND title='Federico - YYYYMMDD'` |
+| Confluence 写入 | `updateConfluencePage` | `cloudId: "troneco.atlassian.net"`, `pageId`, `contentFormat: "adf"` |
+
+**固定值**：
+- Federico 的 Atlassian account ID：`62b993a8fbc1f7c647b76104`
+- Slack Bot Token 可访问频道：仅 `daily-ai-assistant`（`C0ARYHYLZ3Q`）；其他频道需在该频道执行 `/invite @Claude`
 
 ---
 
 ## Limitations
 
-- `slack_get_channel_history` does not support `oldest`/`latest` time filtering; messages are fetched in bulk and filtered by timestamp
-- `slack_search_messages` is not available in the current Slack MCP server; workspace-wide search is skipped
+- `slack_get_channel_history` 不支持 `oldest`/`latest` 时间过滤，需拉取全量后按 `ts` 筛选
+- Slack MCP 使用 Bot Token，只能读取 Bot 已加入的频道；非 Enterprise 工作区无法升级为 User Token
+- `gh api /users/{user}/events` 最多返回 300 条，覆盖约 90 天；超出范围的历史活动需用 search API 补查
+- `gh api --jq` 不支持 `--arg`，需 pipe 给 `jq`：`gh api "..." | jq --arg key val '...'`
+- GitHub events API 中 PR/Issue title 有时为 null，需单独调用 pulls/{number} 补全
