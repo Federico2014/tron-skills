@@ -62,27 +62,66 @@ Collect from all sources in parallel. Filter all results by time range.
 
 > **Time zone note**: GitHub API dates are in UTC. The report range (last Friday 12:00 → this Friday 12:00 UTC+8) maps to UTC as `${last_friday}T04:00:00Z` → `${this_friday}T04:00:00Z`. Use these UTC bounds for all GitHub API date filtering.
 
-#### 2a. Slack: Channel Messages
+#### 2a. Slack: All Activity via Official Slack MCP
 
-**Accessible channels** (Bot Token only reads channels where Bot has been invited):
+使用官方 Slack MCP（`mcp.slack.com`，OAuth 2.1），可访问所有频道（公开 + 私有 + DM），无需 Bot 邀请。
 
-| Channel | ID | Status |
-|---------|-----|--------|
-| `daily-ai-assistant` | `C0ARYHYLZ3Q` | ✅ 可访问 |
-| Other channels | — | ❌ 需在频道内执行 `/invite @Claude` |
+**2a-i. 搜索本周 Federico 发出的消息（覆盖所有频道）**
 
 ```
-Tool: slack_get_channel_history
-Params: channel_id = "C0ARYHYLZ3Q", limit = 200
+Tool: slack_search_public_and_private
+Params:
+  query = "from:me after:${last_friday_date} before:${this_friday_date}"
+  sort = "timestamp"
+  sort_dir = "asc"
+  limit = 20
 ```
 
-`slack_get_channel_history` 不支持时间过滤，拉取后按 `ts`（Unix 时间戳）筛选本周消息。`ts` 换算：`last_friday 12:00 UTC+8` = Unix `$(date -j -f "%Y-%m-%d %H:%M:%S" "${last_friday} 12:00:00" +%s)`.
+若结果有下一页（`pagination_info` 含 cursor），继续翻页直到取完。
 
-有线程的消息补充拉取：
+**2a-ii. 搜索本周发给 Federico 的消息（DM + @mention）**
+
 ```
-Tool: slack_get_thread_replies
-Params: channel_id = "C0ARYHYLZ3Q", thread_ts = <parent ts>
+Tool: slack_search_public_and_private
+Params:
+  query = "to:me after:${last_friday_date} before:${this_friday_date}"
+  sort = "timestamp"
+  sort_dir = "asc"
+  limit = 20
 ```
+
+**2a-iii. 读取 daily-ai-assistant 频道完整历史（含所有人发言）**
+
+```
+Tool: slack_read_channel
+Params:
+  channel_id = "C0ARYHYLZ3Q"
+  oldest = "${last_friday_unix_ts}"   # last_friday 12:00 UTC+8 的 Unix 时间戳
+  latest = "${this_friday_unix_ts}"   # this_friday 12:00 UTC+8 的 Unix 时间戳
+  limit = 100
+```
+
+`oldest`/`latest` 时间戳换算：
+```bash
+last_friday_unix=$(date -j -f "%Y-%m-%d %H:%M:%S" "${last_friday} 12:00:00" +%s)
+this_friday_unix=$(date -j -f "%Y-%m-%d %H:%M:%S" "${this_friday} 12:00:00" +%s)
+```
+
+**2a-iv. 读取重要消息的线程回复**
+
+```
+Tool: slack_read_thread
+Params:
+  channel_id = <channel_id>
+  message_ts = <parent message ts>
+```
+
+**关键频道列表**：
+
+| Channel | ID | 用途 |
+|---------|-----|------|
+| `daily-ai-assistant` | `C0ARYHYLZ3Q` | AI 工作日报、文档分享 |
+| `search-task` | `C0ADF3TJQRE` | 搜索/后量子签名方案讨论 |
 
 #### 2b. GitHub: All Activity via Events API
 
@@ -380,8 +419,10 @@ Use standard Markdown tables only when Confluence is unavailable (preview or man
 
 | Source | Tool / API | Key Parameters |
 |--------|-----------|---------------|
-| Slack messages | `slack_get_channel_history` | `channel_id: "C0ARYHYLZ3Q"`, `limit: 200`；按 `ts` 过滤时间范围 |
-| Slack threads | `slack_get_thread_replies` | `channel_id`, `thread_ts` |
+| Slack 全渠道搜索（发出） | `slack_search_public_and_private` | `query: "from:me after:YYYY-MM-DD before:YYYY-MM-DD"` |
+| Slack 全渠道搜索（收到） | `slack_search_public_and_private` | `query: "to:me after:YYYY-MM-DD before:YYYY-MM-DD"` |
+| Slack 频道历史 | `slack_read_channel` | `channel_id`, `oldest`/`latest`（Unix 时间戳），`limit: 100` |
+| Slack 线程回复 | `slack_read_thread` | `channel_id`, `message_ts` |
 | GitHub 全量活动 | `gh api /users/Federico2014/events` | `per_page=100`；覆盖所有仓库（personal + org）；日期用 UTC |
 | GitHub PR 详情 | `gh api /repos/{owner}/{repo}/pulls/{number}` | 补全 events 中 null 的 title/body |
 | GitHub review 内联评论 | `gh api /repos/{owner}/{repo}/pulls/{number}/comments` | 过滤 `user.login == "Federico2014"` 和 `created_at` 在 UTC 范围内 |
@@ -393,14 +434,15 @@ Use standard Markdown tables only when Confluence is unavailable (preview or man
 
 **固定值**：
 - Federico 的 Atlassian account ID：`62b993a8fbc1f7c647b76104`
-- Slack Bot Token 可访问频道：仅 `daily-ai-assistant`（`C0ARYHYLZ3Q`）；其他频道需在该频道执行 `/invite @Claude`
+- Slack `daily-ai-assistant` channel ID：`C0ARYHYLZ3Q`
+- Slack `search-task` channel ID：`C0ADF3TJQRE`
 
 ---
 
 ## Limitations
 
-- `slack_get_channel_history` 不支持 `oldest`/`latest` 时间过滤，需拉取全量后按 `ts` 筛选
-- Slack MCP 使用 Bot Token，只能读取 Bot 已加入的频道；非 Enterprise 工作区无法升级为 User Token
+- Slack 官方 MCP (`mcp.slack.com`) 需工作区管理员审批并完成 OAuth 授权后才可使用；未授权时退回 `daily-ai-assistant` 频道的 `slack_read_channel` 调用
+- `slack_search_public_and_private` 每页最多 20 条，需按 cursor 翻页；`slack_read_channel` 每页最多 100 条
 - `gh api /users/{user}/events` 最多返回 300 条，覆盖约 90 天；超出范围的历史活动需用 search API 补查
 - `gh api --jq` 不支持 `--arg`，需 pipe 给 `jq`：`gh api "..." | jq --arg key val '...'`
 - GitHub events API 中 PR/Issue title 有时为 null，需单独调用 pulls/{number} 补全
