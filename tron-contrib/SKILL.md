@@ -21,6 +21,54 @@ java-tron is an open-source project that welcomes contributions from anyone. The
 1. **Small fixes**: Send a pull request (PR) with a detailed description
 2. **Complex changes**: Submit an issue to the [TIP repository](https://github.com/tronprotocol/tips) detailing your motive and implementation plan
 
+## PR Submission Rules
+
+### Single Module Principle
+
+- One PR solves one problem. Never mix unrelated bugfixes or features into the same PR.
+- Split by module boundary: changes spanning net, consensus, db, API, event, or other independent sub-modules must be submitted separately.
+- **File count limit**: non-test file changes must not exceed **10 files**. Exceptions:
+  - Wholesale code relocation
+  - New features that passed a prior design review
+- When strong cross-module dependencies exist (e.g., an interface change that requires updating callers), state the relationship explicitly in the PR description.
+
+### Pre-submit Checklist
+
+| Item | Requirement |
+|------|-------------|
+| Code style | Conforms to Google Java Style Guide; passes Checkstyle |
+| No debug code | No `System.out.println`, temporary comments, or unresolved TODOs |
+| Numeric safety | ① Do not use `java.lang.Math` or the legacy `Maths` helper — use `StrictMathWrapper` instead; ② No floating-point in consensus code — use `BigDecimal`; integer arithmetic must use `BigInteger` or `StrictMathWrapper.xxxExact`; ③ Narrowing casts must use `xxxExact` range-checking methods |
+| Logging levels | Avoid redundant INFO/WARN logs on hot paths |
+| Database changes | Must include a compatibility statement |
+| Consensus changes | Must describe hard-fork impact and the node version range that needs upgrading |
+| Config changes | Must sync `config.conf` and related configuration files |
+| Dependency upgrades | State the upgrade reason and compatibility verification; attach a security scan report (e.g., OWASP dependency-check output) and assess impact on node startup time and memory |
+| Comments | Complex logic must have explanatory comments |
+| Naming | No ambiguous, near-duplicate, or unreadable variable / method / class names |
+
+### Submitter Response SLA
+
+- Respond to review feedback within **3 business days** (acknowledge, push back, or explain progress).
+- After fixing code, Resolve the conversation or reply with a summary, and update the PR description with a change summary.
+- If unable to respond due to objective reasons (vacation, blocking dependency), arrange a substitute reviewer.
+- PRs with no update for more than 3 business days without explanation may be marked `stale`.
+
+### AI-Assisted Development Disclosure
+
+When using AI tools (Copilot, Cursor, Claude, etc.):
+- **Allowed**: code completion, logic suggestions, test generation
+- **Prohibited**: directly using AI-generated core logic in consensus, storage, or cryptography modules
+- **Prohibited**: commit author field must not include AI identifiers
+- The submitter must be able to explain every line of code and answer any follow-up questions from reviewers in depth
+
+Encouraged (not mandatory) disclosure in the PR description:
+```
+> AI assistance note: parts of this PR (test cases / comments / boilerplate) were
+> generated with AI tooling, reviewed line-by-line, and verified by the submitter,
+> who takes full responsibility for all content.
+```
+
 ## Commit Message Format
 
 ### Format
@@ -121,6 +169,17 @@ Closes #1234
 | Release | Version number | `Odyssey-v3.1.3`, `3.1.3` |
 | Hotfix | `hotfix/<bug-description>` | `hotfix/typo`, `hotfix/null_point_exception` |
 | Feature | `feature/<feature-description>` | `feature/new_resource_model` |
+
+### Merge Strategy
+
+| Strategy | Use case | Branch direction |
+|----------|---------|-----------------|
+| **Squash and Merge** | Feature development PR | feature → develop / release_xxx / master |
+| **Rebase and Merge** | Branch sync | release_xxx → master, master → develop |
+| Create a merge commit | Rarely used | — |
+
+- Feature into main branch → Squash (one PR = one commit; keeps history clean and easy to revert)
+- Branch-to-branch sync → Rebase (preserves per-feature commit granularity; avoids meaningless merge nodes)
 
 ### Typical Workflow
 
